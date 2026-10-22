@@ -201,9 +201,11 @@ describe("Google Analytics MCP tools", () => {
       status: "ok",
       rowCount: 2,
       totalCandidateRows: 2,
+      source: { analyticsProvider: "ga4" },
       request: {
         dateRange: { startDate: "2026-07-01", endDate: "2026-07-28" },
       },
+      scoring: { businessValueMetric: "sessionKeyEventRate" },
       rows: [
         {
           page: "https://example.com/a",
@@ -223,6 +225,7 @@ describe("Google Analytics MCP tools", () => {
           position: 14,
           joinStatus: "gsc_only",
           ga4: null,
+          matomo: null,
           score: null,
         },
       ],
@@ -230,12 +233,13 @@ describe("Google Analytics MCP tools", () => {
     });
     const { getSearchOpportunitiesTool } = tools;
     const result = await getSearchOpportunitiesTool.handler(
-      { projectId: "project_1", limit: 25 },
+      { projectId: "project_1", limit: 25, analyticsSource: "auto" },
       toolContext,
     );
     expect(mocks.getOpportunities).toHaveBeenCalledWith({
       projectId: "project_1",
       limit: 25,
+      analyticsSource: "auto",
     });
     expect(result.structuredContent).toMatchObject({
       status: "ok",
@@ -244,9 +248,9 @@ describe("Google Analytics MCP tools", () => {
     });
     expect(textContent(result)).toEqual(
       [
-        "Search opportunities for 2026-07-01 through 2026-07-28: 2 returned from 2 candidates. 1 candidates matched GA4 landing pages.",
-        "score | page | position | impressions | clicks | CTR | sessions | keyEvents | engagementRate | match",
-        "90 | https://example.com/a | 8.4 | 900 | 12 | 1.3% | 40 | 3 | 0.62 | joined",
+        "Search opportunities for 2026-07-01 through 2026-07-28: 2 returned from 2 candidates. 1 candidates matched GA4 landing pages; business value uses sessionKeyEventRate.",
+        "score | page | position | impressions | clicks | CTR | sessions/visits | keyEvents | engagement | match",
+        "90 | https://example.com/a | 8.4 | 900 | 12 | 1.3% | 40 | 3 | 62.0% | joined",
         "— | https://example.com/b | 14.0 | 120 | 1 | 0.8% | — | — | — | gsc_only",
       ].join("\n"),
     );
@@ -258,7 +262,7 @@ describe("Google Analytics MCP tools", () => {
     );
 
     const result = await tools.getSearchOpportunitiesTool.handler(
-      { projectId: "project_1", limit: 25 },
+      { projectId: "project_1", limit: 25, analyticsSource: "auto" },
       toolContext,
     );
 

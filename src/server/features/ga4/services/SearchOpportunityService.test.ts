@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   getGscConnection: vi.fn(),
   getPerformance: vi.fn(),
   runGa4Report: vi.fn(),
+  getMatomoConnection: vi.fn(),
+  getMatomoLandingPages: vi.fn(),
 }));
 
 vi.mock("@/server/features/ga4/repositories/Ga4ConnectionRepository", () => ({
@@ -16,6 +18,17 @@ vi.mock("@/server/features/gsc/services/GscService", () => ({
   GscService: {
     getConnection: mocks.getGscConnection,
     getPerformance: mocks.getPerformance,
+  },
+}));
+vi.mock(
+  "@/server/features/matomo/repositories/MatomoConnectionRepository",
+  () => ({
+    MatomoConnectionRepository: { getByProjectId: mocks.getMatomoConnection },
+  }),
+);
+vi.mock("@/server/features/matomo/services/MatomoReportingService", () => ({
+  MatomoReportingService: {
+    getOrganicLandingPages: mocks.getMatomoLandingPages,
   },
 }));
 vi.mock("@/server/features/ga4/services/Ga4ReportingService", () => ({
@@ -63,6 +76,7 @@ describe("SearchOpportunityService", () => {
       siteUrl: "https://example.com/",
     });
     mocks.runGa4Report.mockResolvedValue(ga4Result);
+    mocks.getMatomoConnection.mockResolvedValue(null);
   });
 
   it("normalizes URLs, scores joined candidates, and leaves unmatched pages unscored", async () => {
@@ -198,5 +212,59 @@ describe("SearchOpportunityService", () => {
         endDate: "2026-08-02",
       }),
     );
+  });
+  it("scores against Matomo landing pages when GA4 is not connected", async () => {
+    mocks.getGa4Connection.mockResolvedValue(null);
+    mocks.getMatomoConnection.mockResolvedValue({
+      siteTimeZone: "Europe/Amsterdam",
+    });
+    mocks.getMatomoLandingPages.mockResolvedValue({
+      source: { siteId: "1", siteName: "Example" },
+      rows: [
+        {
+          page: "https://example.com/jobs/",
+          grouped: false,
+          visits: 300,
+          bounceRate: 0.2,
+          avgVisitDurationSeconds: 90,
+          actionsPerVisit: 3,
+        },
+        {
+          page: "(other pages under /jobs/, grouped by Matomo)",
+          grouped: true,
+          visits: 900,
+          bounceRate: 0.1,
+          avgVisitDurationSeconds: 60,
+          actionsPerVisit: 2,
+        },
+      ],
+    });
+    mocks.getPerformance.mockResolvedValue({
+      siteUrl: "sc-domain:example.com",
+      request: {},
+      rows: [
+        {
+          keys: ["https://example.com/jobs"],
+          clicks: 20,
+          impressions: 1_000,
+          ctr: 0.02,
+          position: 7,
+        },
+      ],
+    });
+
+    const result = await SearchOpportunityService.getOpportunities({
+      projectId: "project_1",
+    });
+
+    expect(mocks.runGa4Report).not.toHaveBeenCalled();
+    expect(result.source.analyticsProvider).toBe("matomo");
+    expect(result.scoring.businessValueMetric).toBe("nonBounceRate");
+    expect(result.rows[0]).toMatchObject({
+      joinStatus: "joined",
+      ga4: null,
+      matomo: { visits: 300, nonBounceRate: 0.8 },
+    });
+    expect(result.warnings).toContain("matomo_grouped_rows");
   });
 });

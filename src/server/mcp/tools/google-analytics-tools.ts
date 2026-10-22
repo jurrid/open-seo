@@ -16,6 +16,7 @@ import {
   type Ga4ReportResult,
 } from "@/server/features/ga4/services/Ga4ReportingService";
 import { Ga4ReportError } from "@/server/lib/ga4Errors";
+import { MatomoReportError } from "@/server/lib/matomoErrors";
 import { SearchOpportunityService } from "@/server/features/ga4/services/SearchOpportunityService";
 import { buildProjectMeta } from "@/server/mcp/context";
 import { mcpResponse } from "@/server/mcp/formatters";
@@ -181,6 +182,18 @@ function actionUrl(
   if (code.startsWith("gsc_")) {
     return buildDashboardUrl(baseUrl, `/p/${projectId}/search-performance`);
   }
+  if (
+    [
+      "matomo_not_connected",
+      "matomo_reconnect_required",
+      "matomo_site_inaccessible",
+    ].includes(code)
+  ) {
+    return buildDashboardUrl(
+      baseUrl,
+      `/p/${projectId}/settings/integrations#matomo`,
+    );
+  }
   return undefined;
 }
 
@@ -196,6 +209,9 @@ function errorResponse(
     code = error.code;
     message = error.message;
     retryAfterSeconds = error.retryAfterSeconds;
+  } else if (error instanceof MatomoReportError) {
+    code = error.code;
+    message = error.message;
   } else if (error instanceof GscNotConnectedError) {
     code = "gsc_not_connected";
     message = "Search Console is not connected for this project.";
@@ -432,15 +448,22 @@ const OPPORTUNITY_COLUMNS: McpTableColumn<SearchOpportunityRow>[] = [
   { header: "impressions", value: (row) => row.impressions },
   { header: "clicks", value: (row) => row.clicks },
   { header: "CTR", value: (row) => row.ctr, format: percentCell },
-  { header: "sessions", value: (row) => row.ga4?.sessions },
+  {
+    header: "sessions/visits",
+    value: (row) => row.ga4?.sessions ?? row.matomo?.visits,
+  },
   { header: "keyEvents", value: (row) => row.ga4?.keyEvents },
-  { header: "engagementRate", value: (row) => row.ga4?.engagementRate },
+  {
+    header: "engagement",
+    value: (row) => row.ga4?.engagementRate ?? row.matomo?.nonBounceRate,
+    format: percentCell,
+  },
   { header: "match", value: (row) => row.joinStatus },
 ];
 
 function opportunityText(result: SearchOpportunityResult) {
   const range = result.request.dateRange;
-  const summary = `Search opportunities for ${range.startDate} through ${range.endDate}: ${result.rowCount} returned from ${result.totalCandidateRows} candidates. ${result.coverage.matchedRows} candidates matched GA4 landing pages.`;
+  const summary = `Search opportunities for ${range.startDate} through ${range.endDate}: ${result.rowCount} returned from ${result.totalCandidateRows} candidates. ${result.coverage.matchedRows} candidates matched ${result.source.analyticsProvider === "matomo" ? "Matomo" : "GA4"} landing pages; business value uses ${result.scoring.businessValueMetric}.`;
   if (result.rows.length === 0) return summary;
   return `${summary}\n${formatMcpTable(result.rows, OPPORTUNITY_COLUMNS)}`;
 }
@@ -609,6 +632,13 @@ const opportunityInputSchema = z.strictObject({
   startDate: dateSchema.optional(),
   endDate: dateSchema.optional(),
   limit: z.number().int().min(1).max(100).optional().default(50),
+  analyticsSource: z
+    .enum(["auto", "ga4", "matomo"])
+    .optional()
+    .default("auto")
+    .describe(
+      "Which analytics connection supplies landing-page outcomes. auto uses GA4 when connected, otherwise Matomo.",
+    ),
 });
 type OpportunityArgs = z.infer<typeof opportunityInputSchema>;
 
@@ -617,7 +647,7 @@ export const getSearchOpportunitiesTool = {
   config: {
     title: "Get search opportunities",
     description:
-      "Join Search Console pages ranking in positions 4–20 with GA4 organic landing-page outcomes, then score matched opportunities by demand, business value, and reachability. Unmatched pages remain visible and unscored. Reads only the Search Console and GA4 properties already connected to an OpenSEO project the caller is authorized to access. The server selects the Google accounts and properties from that project's saved connections. Read-only and uses no OpenSEO credits.",
+      "Join Search Console pages ranking in positions 4–20 with organic landing-page outcomes from GA4 or Matomo, then score matched opportunities by demand, business value, and reachability. Business value is the GA4 key-event rate (engagement rate when there are no key events) or the Matomo non-bounce rate. Unmatched pages remain visible and unscored. Reads only the Search Console, GA4 and Matomo connections already saved on an OpenSEO project the caller is authorized to access. Read-only and uses no OpenSEO credits.",
     inputSchema: opportunityInputSchema,
     outputSchema: opportunityOutputSchema,
     annotations: {

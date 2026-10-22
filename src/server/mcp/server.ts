@@ -53,6 +53,10 @@ import {
   getGoogleAnalyticsTrafficAcquisitionTool,
   getSearchOpportunitiesTool,
 } from "@/server/mcp/tools/google-analytics-tools";
+import {
+  getMatomoOrganicLandingPagesTool,
+  getMatomoOrganicOverviewTool,
+} from "@/server/mcp/tools/matomo-tools";
 import { createProjectTool } from "@/server/mcp/tools/create-project";
 import { listProjectsTool } from "@/server/mcp/tools/list-projects";
 import {
@@ -298,6 +302,8 @@ export function createOpenSeoMcpServer(
   register(getGoogleAnalyticsEcommercePerformanceTool);
   register(getGoogleAnalyticsSiteSearchTool);
   register(getGoogleAnalyticsAudienceBreakdownTool);
+  register(getMatomoOrganicOverviewTool);
+  register(getMatomoOrganicLandingPagesTool);
   register(runSiteAuditTool);
   register(listSiteAuditsTool);
   register(deleteSiteAuditTool);

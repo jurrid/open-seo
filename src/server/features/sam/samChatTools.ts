@@ -55,6 +55,10 @@ import {
   getSearchOpportunitiesTool,
 } from "@/server/mcp/tools/google-analytics-tools";
 import {
+  getMatomoOrganicLandingPagesTool,
+  getMatomoOrganicOverviewTool,
+} from "@/server/mcp/tools/matomo-tools";
+import {
   findSerpCompetitorsTool,
   getGoogleBusinessQuestionsTool,
   getKeywordMetricsTool,
@@ -455,6 +459,10 @@ export function buildSamMcpTools(
     ),
     get_google_analytics_audience_breakdown: adaptObjectTool(
       getGoogleAnalyticsAudienceBreakdownTool,
+    ),
+    get_matomo_organic_overview: adaptObjectTool(getMatomoOrganicOverviewTool),
+    get_matomo_organic_landing_pages: adaptObjectTool(
+      getMatomoOrganicLandingPagesTool,
     ),
     run_site_audit: adaptTool(runSiteAuditTool),
     get_audit_status: waitingAuditStatusTool(adaptTool),

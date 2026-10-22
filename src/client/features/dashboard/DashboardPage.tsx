@@ -25,6 +25,7 @@ import {
   GscCard,
 } from "@/client/features/dashboard/DashboardCards";
 import { Ga4Card } from "@/client/features/dashboard/Ga4Card";
+import { MatomoCard } from "@/client/features/dashboard/MatomoCard";
 import { WorkspaceMergeBanner } from "@/client/features/dashboard/WorkspaceMergeBanner";
 import { QueryError } from "@/client/components/QueryState";
 import {
@@ -125,6 +126,15 @@ export function DashboardPage({
             key: "ga4",
             hasData: ga4Connected,
             node: <Ga4Card projectId={projectId} connected={ga4Connected} />,
+          },
+        ]
+      : []),
+    ...(activation.matomo.connected
+      ? [
+          {
+            key: "matomo",
+            hasData: true,
+            node: <MatomoCard projectId={projectId} />,
           },
         ]
       : []),
