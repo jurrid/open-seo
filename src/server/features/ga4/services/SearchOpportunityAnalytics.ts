@@ -17,6 +17,9 @@ export type Ga4PageMetrics = {
 
 export type MatomoPageMetrics = {
   visits: number;
+  conversions: number;
+  conversionRate: number | null;
+  goalConversions: Record<string, number>;
   bounceRate: number | null;
   nonBounceRate: number | null;
   avgVisitDurationSeconds: number | null;
@@ -155,6 +158,9 @@ export async function loadMatomoPages(
     }
     byPage.set(key, {
       visits: row.visits,
+      conversions: row.conversions,
+      conversionRate: row.conversionRate,
+      goalConversions: row.goalConversions,
       bounceRate: row.bounceRate,
       nonBounceRate: row.bounceRate === null ? null : 1 - row.bounceRate,
       avgVisitDurationSeconds: row.avgVisitDurationSeconds,

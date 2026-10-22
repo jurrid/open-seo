@@ -8,6 +8,7 @@ import { AppError } from "@/server/lib/errors";
 import {
   getMatomoDailyVisitsSummary,
   getMatomoEntryPages,
+  getMatomoGoalNames,
   getMatomoVisitsSummary,
   MATOMO_ORGANIC_SEGMENT,
   type MatomoVisitsSummary,
@@ -186,27 +187,48 @@ async function getOrganicLandingPages(input: {
     input.projectId,
   );
   const range = resolveRange(connection, input);
-  const pages = await getMatomoEntryPages({
+  const site = {
     baseUrl: connection.baseUrl,
     token,
     siteId: connection.siteId,
-    segment: MATOMO_ORGANIC_SEGMENT,
-    ...range,
-    limit: input.limit,
-    offset: input.offset,
+  };
+  const [pages, goalNames] = await Promise.all([
+    getMatomoEntryPages({
+      ...site,
+      segment: MATOMO_ORGANIC_SEGMENT,
+      ...range,
+      limit: input.limit,
+      offset: input.offset,
+    }),
+    getMatomoGoalNames(site),
+  ]);
+  const rows = pages.map((page) => {
+    // Conversions in visits that started on this page, across all goals.
+    const conversions = Object.values(page.goals).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    return {
+      page: page.url ?? groupedLabel(page.label),
+      // Matomo folds rows past its report row limit into "Others" summary rows.
+      grouped: !page.url && /(^| - )Others$/.test(page.label),
+      visits: page.entry_nb_visits,
+      conversions,
+      conversionRate: ratio(conversions, page.entry_nb_visits),
+      goalConversions: Object.fromEntries(
+        Object.entries(page.goals).map(([goalId, count]) => [
+          goalNames.get(goalId) ?? `Goal ${goalId}`,
+          count,
+        ]),
+      ),
+      bounceRate: ratio(page.entry_bounce_count, page.entry_nb_visits),
+      avgVisitDurationSeconds: ratio(
+        page.entry_sum_visit_length,
+        page.entry_nb_visits,
+      ),
+      actionsPerVisit: ratio(page.entry_nb_actions, page.entry_nb_visits),
+    };
   });
-  const rows = pages.map((page) => ({
-    page: page.url ?? groupedLabel(page.label),
-    // Matomo folds rows past its report row limit into "Others" summary rows.
-    grouped: !page.url && /(^| - )Others$/.test(page.label),
-    visits: page.entry_nb_visits,
-    bounceRate: ratio(page.entry_bounce_count, page.entry_nb_visits),
-    avgVisitDurationSeconds: ratio(
-      page.entry_sum_visit_length,
-      page.entry_nb_visits,
-    ),
-    actionsPerVisit: ratio(page.entry_nb_actions, page.entry_nb_visits),
-  }));
 
   return {
     status: "ok" as const,
@@ -216,7 +238,9 @@ async function getOrganicLandingPages(input: {
       segment: MATOMO_ORGANIC_SEGMENT,
       limit: input.limit,
       offset: input.offset,
+      conversionAttribution: "entry",
     },
+    goals: [...goalNames.values()],
     rowCount: rows.length,
     rows,
   };

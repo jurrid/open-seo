@@ -225,6 +225,9 @@ describe("SearchOpportunityService", () => {
           page: "https://example.com/jobs/",
           grouped: false,
           visits: 300,
+          conversions: 6,
+          conversionRate: 0.02,
+          goalConversions: { Application: 6 },
           bounceRate: 0.2,
           avgVisitDurationSeconds: 90,
           actionsPerVisit: 3,
@@ -233,6 +236,9 @@ describe("SearchOpportunityService", () => {
           page: "(other pages under /jobs/, grouped by Matomo)",
           grouped: true,
           visits: 900,
+          conversions: 0,
+          conversionRate: 0,
+          goalConversions: {},
           bounceRate: 0.1,
           avgVisitDurationSeconds: 60,
           actionsPerVisit: 2,
@@ -259,11 +265,11 @@ describe("SearchOpportunityService", () => {
 
     expect(mocks.runGa4Report).not.toHaveBeenCalled();
     expect(result.source.analyticsProvider).toBe("matomo");
-    expect(result.scoring.businessValueMetric).toBe("nonBounceRate");
+    expect(result.scoring.businessValueMetric).toBe("entryConversionRate");
     expect(result.rows[0]).toMatchObject({
       joinStatus: "joined",
       ga4: null,
-      matomo: { visits: 300, nonBounceRate: 0.8 },
+      matomo: { visits: 300, conversions: 6 },
     });
     expect(result.warnings).toContain("matomo_grouped_rows");
   });

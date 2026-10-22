@@ -452,7 +452,10 @@ const OPPORTUNITY_COLUMNS: McpTableColumn<SearchOpportunityRow>[] = [
     header: "sessions/visits",
     value: (row) => row.ga4?.sessions ?? row.matomo?.visits,
   },
-  { header: "keyEvents", value: (row) => row.ga4?.keyEvents },
+  {
+    header: "conversions",
+    value: (row) => row.ga4?.keyEvents ?? row.matomo?.conversions,
+  },
   {
     header: "engagement",
     value: (row) => row.ga4?.engagementRate ?? row.matomo?.nonBounceRate,
@@ -647,7 +650,7 @@ export const getSearchOpportunitiesTool = {
   config: {
     title: "Get search opportunities",
     description:
-      "Join Search Console pages ranking in positions 4–20 with organic landing-page outcomes from GA4 or Matomo, then score matched opportunities by demand, business value, and reachability. Business value is the GA4 key-event rate (engagement rate when there are no key events) or the Matomo non-bounce rate. Unmatched pages remain visible and unscored. Reads only the Search Console, GA4 and Matomo connections already saved on an OpenSEO project the caller is authorized to access. Read-only and uses no OpenSEO credits.",
+      "Join Search Console pages ranking in positions 4–20 with organic landing-page outcomes from GA4 or Matomo, then score matched opportunities by demand, business value, and reachability. Business value is the GA4 key-event rate or the Matomo goal conversion rate of visits entering on the page, falling back to engagement (GA4 engagement rate, Matomo non-bounce rate) when no page has conversions. Unmatched pages remain visible and unscored. Reads only the Search Console, GA4 and Matomo connections already saved on an OpenSEO project the caller is authorized to access. Read-only and uses no OpenSEO credits.",
     inputSchema: opportunityInputSchema,
     outputSchema: opportunityOutputSchema,
     annotations: {

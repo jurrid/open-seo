@@ -249,7 +249,7 @@ describe("Google Analytics MCP tools", () => {
     expect(textContent(result)).toEqual(
       [
         "Search opportunities for 2026-07-01 through 2026-07-28: 2 returned from 2 candidates. 1 candidates matched GA4 landing pages; business value uses sessionKeyEventRate.",
-        "score | page | position | impressions | clicks | CTR | sessions/visits | keyEvents | engagement | match",
+        "score | page | position | impressions | clicks | CTR | sessions/visits | conversions | engagement | match",
         "90 | https://example.com/a | 8.4 | 900 | 12 | 1.3% | 40 | 3 | 62.0% | joined",
         "— | https://example.com/b | 14.0 | 120 | 1 | 0.8% | — | — | — | gsc_only",
       ].join("\n"),

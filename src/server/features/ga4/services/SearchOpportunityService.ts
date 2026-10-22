@@ -181,13 +181,19 @@ async function getOpportunities(
   const joined = candidates.filter(
     (candidate) => candidate.ga4 !== null || candidate.matomo !== null,
   );
+  // Without any conversions to compare, rank by engagement instead.
   const engagementFallback =
-    analytics.provider === "ga4" &&
     joined.length > 0 &&
-    joined.every((candidate) => candidate.ga4?.keyEvents === 0);
+    joined.every((candidate) =>
+      candidate.matomo
+        ? candidate.matomo.conversions === 0
+        : candidate.ga4?.keyEvents === 0,
+    );
   const businessValueMetric =
     analytics.provider === "matomo"
-      ? "nonBounceRate"
+      ? engagementFallback
+        ? "nonBounceRate"
+        : "entryConversionRate"
       : engagementFallback
         ? "engagementRate"
         : "sessionKeyEventRate";
@@ -197,7 +203,9 @@ async function getOpportunities(
   const businessValue = percentileRanks(
     joined.map((candidate) =>
       candidate.matomo
-        ? (candidate.matomo.nonBounceRate ?? 0)
+        ? ((engagementFallback
+            ? candidate.matomo.nonBounceRate
+            : candidate.matomo.conversionRate) ?? 0)
         : engagementFallback
           ? (candidate.ga4?.engagementRate ?? 0)
           : (candidate.ga4?.sessionKeyEventRate ?? 0),

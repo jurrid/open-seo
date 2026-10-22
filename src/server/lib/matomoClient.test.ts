@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import {
+  getMatomoEntryPages,
   getMatomoVisitsSummary,
   listMatomoSites,
   normalizeMatomoBaseUrl,
@@ -75,4 +76,25 @@ it("refuses to follow a redirect from the Matomo host", async () => {
   await expect(listMatomoSites(range)).rejects.toMatchObject({
     code: "matomo_unreachable",
   });
+});
+
+it("reads entry conversions per goal from the goal columns", async () => {
+  mocks.fetch.mockResolvedValue(
+    Response.json([
+      {
+        label: "jobs",
+        url: "https://example.com/jobs",
+        entry_nb_visits: 100,
+        goals: {
+          "idgoal=2": { nb_conversions: 9, nb_conversions_entry: 4 },
+          // Converted later in visits that entered elsewhere: not this page's.
+          "idgoal=1": { nb_conversions: 3 },
+        },
+      },
+    ]),
+  );
+
+  const [page] = await getMatomoEntryPages({ ...range, limit: 10, offset: 0 });
+
+  expect(page.goals).toEqual({ "2": 4 });
 });

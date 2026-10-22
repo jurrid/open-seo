@@ -42,6 +42,27 @@ const summaryOrEmpty = z
   .union([visitsSummarySchema, z.array(z.unknown()).length(0)])
   .transform((value) => (Array.isArray(value) ? EMPTY_SUMMARY : value));
 
+// With goal columns requested, each row carries per-goal metrics keyed
+// "idgoal=N". nb_conversions_entry counts conversions in visits that started on
+// the page; it is omitted when zero.
+const entryPageGoalsSchema = z
+  .union([
+    z.record(z.string(), z.object({ nb_conversions_entry: metric.default(0) })),
+    z.array(z.unknown()).length(0),
+  ])
+  .optional()
+  .transform((goals) => {
+    const conversionsByGoalId: Record<string, number> = {};
+    if (!goals || Array.isArray(goals)) return conversionsByGoalId;
+    for (const [key, value] of Object.entries(goals)) {
+      const goalId = /^idgoal=(\d+)$/.exec(key)?.[1];
+      if (goalId && value.nb_conversions_entry > 0) {
+        conversionsByGoalId[goalId] = value.nb_conversions_entry;
+      }
+    }
+    return conversionsByGoalId;
+  });
+
 const entryPageSchema = z.object({
   label: z.coerce.string(),
   url: z.string().optional(),
@@ -49,8 +70,14 @@ const entryPageSchema = z.object({
   entry_nb_actions: metric.default(0),
   entry_sum_visit_length: metric.default(0),
   entry_bounce_count: metric.default(0),
+  goals: entryPageGoalsSchema,
 });
 type MatomoEntryPage = z.infer<typeof entryPageSchema>;
+
+const goalSchema = z.object({
+  idgoal: z.coerce.string(),
+  name: z.string(),
+});
 
 const errorResponseSchema = z.object({
   result: z.literal("error"),
@@ -228,7 +255,24 @@ export function getMatomoEntryPages(
       filter_offset: String(input.offset),
       filter_sort_column: "entry_nb_visits",
       filter_sort_order: "desc",
+      // Adds the per-goal entry conversion columns to each row.
+      filter_update_columns_when_show_all_goals: "1",
+      idGoal: "0",
     },
     schema: z.array(entryPageSchema),
   });
+}
+
+/** Goal id → name for the site; empty when the site has no goals. */
+export async function getMatomoGoalNames(
+  input: Credentials & { siteId: string },
+): Promise<Map<string, string>> {
+  const goals = await callMatomo({
+    ...input,
+    method: "Goals.getGoals",
+    params: { idSite: input.siteId },
+    schema: z.union([z.array(goalSchema), z.record(z.string(), goalSchema)]),
+  });
+  const list = Array.isArray(goals) ? goals : Object.values(goals);
+  return new Map(list.map((goal) => [goal.idgoal, goal.name]));
 }

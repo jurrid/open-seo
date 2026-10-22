@@ -138,7 +138,7 @@ export const getMatomoOrganicLandingPagesTool = {
   name: "get_matomo_organic_landing_pages",
   config: {
     title: "Get Matomo organic landing pages",
-    description: `List the pages where organic search visits started, busiest first, with entry visits, bounce rate, average visit duration and actions per visit. Use it to see which pages earn search traffic and which ones lose visitors immediately. ${SOURCE_NOTE}`,
+    description: `List the pages where organic search visits started, busiest first, with entry visits, goal conversions from those visits (total, rate and per goal name), bounce rate, average visit duration and actions per visit. Use it to see which pages earn search traffic, which ones convert, and which ones lose visitors immediately. ${SOURCE_NOTE}`,
     inputSchema: landingPagesInputSchema,
     outputSchema: envelopeSchema,
     annotations: READ_ONLY_ANNOTATIONS,
@@ -150,6 +150,12 @@ export const getMatomoOrganicLandingPagesTool = {
       const table = formatMcpTable(result.rows, [
         { header: "page", value: (row) => row.page, format: truncatedCell(90) },
         { header: "visits", value: (row) => row.visits },
+        { header: "conversions", value: (row) => row.conversions },
+        {
+          header: "conv. rate",
+          value: (row) => row.conversionRate,
+          format: percentCell,
+        },
         {
           header: "bounce rate",
           value: (row) => row.bounceRate,
